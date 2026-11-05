@@ -1,0 +1,330 @@
+
+<!DOCTYPE html>
+<html lang="nl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Onze dansen - Footloose Star Dancers</title>
+
+<style>
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  padding: 16px;
+  font-family: Arial, sans-serif;
+  background: #f2f5fa;
+  color: #173b70;
+}
+
+.container {
+  max-width: 1100px;
+  margin: auto;
+}
+
+header {
+  background: #173b70;
+  color: white;
+  text-align: center;
+  padding: 22px 12px;
+  border-radius: 12px;
+  margin-bottom: 20px;
+}
+
+header h1 {
+  margin: 0 0 8px;
+  font-size: 27px;
+}
+
+header p {
+  margin: 0;
+  font-size: 16px;
+}
+
+#zoek {
+  width: 100%;
+  padding: 16px;
+  font-size: 18px;
+  border: 2px solid #214a87;
+  border-radius: 10px;
+  margin-bottom: 14px;
+}
+
+#letters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 7px;
+  margin-bottom: 16px;
+}
+
+.letter {
+  padding: 9px 13px;
+  border: 1px solid #214a87;
+  border-radius: 7px;
+  background: white;
+  color: #173b70;
+  font-weight: bold;
+  font-size: 16px;
+  cursor: pointer;
+}
+
+.letter.actief {
+  background: #173b70;
+  color: white;
+}
+
+#status {
+  margin: 12px 0;
+  color: #555;
+}
+
+.dans {
+  background: white;
+  border-radius: 12px;
+  padding: 18px;
+  margin-bottom: 13px;
+  border-left: 5px solid #b22222;
+  box-shadow: 0 2px 7px rgba(0,0,0,.07);
+}
+
+.dans h2 {
+  margin: 0 0 10px;
+  font-size: 22px;
+}
+
+.info {
+  color: #444;
+  line-height: 1.7;
+  margin-bottom: 13px;
+}
+
+.knoppen {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.linkknop {
+  display: inline-block;
+  background: #173b70;
+  color: white;
+  text-decoration: none;
+  padding: 12px 16px;
+  border-radius: 8px;
+  font-weight: bold;
+}
+
+.linkknop:hover {
+  background: #b22222;
+}
+
+.geenlink {
+  color: #777;
+  font-size: 14px;
+}
+
+@media (max-width: 600px) {
+  body { padding: 9px; }
+  header h1 { font-size: 23px; }
+  .dans { padding: 14px; }
+  .dans h2 { font-size: 20px; }
+  .letter { padding: 9px 11px; }
+  .linkknop {
+    width: 100%;
+    text-align: center;
+  }
+}
+</style>
+</head>
+
+<body>
+<div class="container">
+
+<header>
+  <h1>Onze dansen</h1>
+  <p>Ontdek onze linedances, muziek en dansvideo's</p>
+</header>
+
+<input id="zoek" type="search" placeholder="Zoek een dansnaam...">
+
+<div id="letters"></div>
+<div id="status">Dansen worden geladen...</div>
+<div id="lijst"></div>
+
+</div>
+
+<script>
+const CSV_URL =
+'https://docs.google.com/spreadsheets/d/e/2PACX-1vSYG4XzDwu4i0qIeLzldyCvl-G8e2Srmqp1olPswI699VROykExsAW83wO8E4qAJRCeYQMReAbTh06z/pub?gid=86558985&single=true&output=csv';
+
+let dansen = [];
+let gekozenLetter = '';
+
+function csvRegels(tekst) {
+  const regels = [];
+  let regel = [];
+  let veld = '';
+  let aanhaling = false;
+
+  for (let i = 0; i < tekst.length; i++) {
+    const c = tekst[i];
+
+    if (c === '"' && aanhaling && tekst[i + 1] === '"') {
+      veld += '"';
+      i++;
+    } else if (c === '"') {
+      aanhaling = !aanhaling;
+    } else if (c === ',' && !aanhaling) {
+      regel.push(veld);
+      veld = '';
+    } else if ((c === '\n' || c === '\r') && !aanhaling) {
+      if (c === '\r' && tekst[i + 1] === '\n') i++;
+      regel.push(veld);
+      if (regel.some(v => v.trim() !== '')) regels.push(regel);
+      regel = [];
+      veld = '';
+    } else {
+      veld += c;
+    }
+  }
+
+  regel.push(veld);
+  if (regel.some(v => v.trim() !== '')) regels.push(regel);
+
+  return regels;
+}
+
+function waarde(d, naam) {
+  const sleutel = Object.keys(d).find(
+    k => k.trim().toUpperCase() === naam.toUpperCase()
+  );
+  return sleutel ? (d[sleutel] || '').trim() : '';
+}
+
+function maakLetters() {
+  const letters = [...new Set(
+    dansen.map(d => waarde(d, 'DANSNAAM').charAt(0).toUpperCase())
+      .filter(Boolean)
+  )].sort();
+
+  const balk = document.getElementById('letters');
+  balk.innerHTML = '';
+
+  [['Alles', ''], ...letters.map(l => [l, l])].forEach(([tekst, letter]) => {
+    const knop = document.createElement('button');
+    knop.className = 'letter' +
+      (gekozenLetter === letter ? ' actief' : '');
+    knop.textContent = tekst;
+    knop.onclick = () => {
+      gekozenLetter = letter;
+      maakLetters();
+      toonLijst();
+    };
+    balk.appendChild(knop);
+  });
+}
+
+function maakLink(kaart, url, tekst) {
+  if (!url || !/^https?:\/\//i.test(url)) return;
+
+  const knop = document.createElement('a');
+  knop.className = 'linkknop';
+  knop.href = url;
+  knop.target = '_blank';
+  knop.rel = 'noopener';
+  knop.textContent = tekst;
+  kaart.appendChild(knop);
+}
+
+function toonLijst() {
+  const zoekterm = document.getElementById('zoek').value
+    .trim().toLowerCase();
+
+  const resultaten = dansen.filter(d => {
+    const naam = waarde(d, 'DANSNAAM').toLowerCase();
+    return naam.includes(zoekterm) &&
+      (!gekozenLetter ||
+       naam.toUpperCase().startsWith(gekozenLetter));
+  });
+
+  document.getElementById('status').textContent =
+    resultaten.length + ' dans(en) gevonden';
+
+  const lijst = document.getElementById('lijst');
+  lijst.innerHTML = '';
+
+  resultaten.forEach(d => {
+    const kaart = document.createElement('div');
+    kaart.className = 'dans';
+
+    const naam = document.createElement('h2');
+    naam.textContent = waarde(d, 'DANSNAAM');
+    kaart.appendChild(naam);
+
+    const info = document.createElement('div');
+    info.className = 'info';
+
+    const regels = [];
+    if (waarde(d, 'TITEL'))
+      regels.push('Muziek: ' + waarde(d, 'TITEL'));
+    if (waarde(d, 'ARTIEST'))
+      regels.push('Artiest: ' + waarde(d, 'ARTIEST'));
+    if (waarde(d, 'NIVEAU'))
+      regels.push('Niveau: ' + waarde(d, 'NIVEAU'));
+    if (waarde(d, 'AANTAL TELLEN'))
+      regels.push('Aantal tellen: ' + waarde(d, 'AANTAL TELLEN'));
+
+    info.textContent = regels.join(' | ');
+    kaart.appendChild(info);
+
+    const knoppen = document.createElement('div');
+    knoppen.className = 'knoppen';
+
+    const link1 = waarde(d, 'LINK');
+    const link2 = waarde(d, 'LINK 2');
+
+    if (link1) maakLink(knoppen, link1, 'BEKIJK STEPSHEET / DANS');
+    if (link2) maakLink(knoppen, link2, 'BEKIJK DANSVIDEO');
+
+    if (!link1 && !link2) {
+      const melding = document.createElement('span');
+      melding.className = 'geenlink';
+      melding.textContent = 'Nog geen link beschikbaar';
+      knoppen.appendChild(melding);
+    }
+
+    kaart.appendChild(knoppen);
+    lijst.appendChild(kaart);
+  });
+}
+
+document.getElementById('zoek')
+  .addEventListener('input', toonLijst);
+
+fetch(CSV_URL)
+  .then(response => {
+    if (!response.ok) throw new Error('Spreadsheet niet bereikbaar');
+    return response.text();
+  })
+  .then(tekst => {
+    const regels = csvRegels(tekst);
+    const koppen = regels.shift();
+
+    dansen = regels.map(regel => {
+      const d = {};
+      koppen.forEach((kop, i) => {
+        d[kop.trim()] = (regel[i] || '').trim();
+      });
+      return d;
+    }).filter(d => waarde(d, 'DANSNAAM'));
+
+    maakLetters();
+    toonLijst();
+  })
+  .catch(error => {
+    document.getElementById('status').textContent =
+      'De dansen konden niet geladen worden. Controleer de publicatie van het tabblad DANSEN.';
+  });
+</script>
+</body>
+</html>
