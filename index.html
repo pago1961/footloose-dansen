@@ -4,135 +4,127 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Onze dansen - Footloose Star Dancers</title>
+<title>Onze dansen - The Footloose Star Dancers</title>
 
 <style>
 * { box-sizing: border-box; }
 
 body {
   margin: 0;
-  padding: 16px;
+  padding: 20px;
   font-family: Arial, sans-serif;
-  background: #f2f5fa;
-  color: #173b70;
+  background: #f1f4fa;
+  color: #193e70;
 }
 
 .container {
-  max-width: 1100px;
+  max-width: 1000px;
   margin: auto;
 }
 
 header {
-  background: #173b70;
+  background: #193e70;
   color: white;
   text-align: center;
-  padding: 22px 12px;
-  border-radius: 12px;
+  padding: 24px 12px;
+  border-radius: 14px;
   margin-bottom: 20px;
 }
 
-header h1 {
-  margin: 0 0 8px;
-  font-size: 27px;
-}
+header h1 { margin: 0 0 8px; }
 
-header p {
-  margin: 0;
-  font-size: 16px;
-}
+header p { margin: 0; }
 
-#zoek {
+input {
   width: 100%;
-  padding: 16px;
+  padding: 15px;
   font-size: 18px;
-  border: 2px solid #214a87;
+  border: 2px solid #244d83;
   border-radius: 10px;
   margin-bottom: 14px;
 }
 
-#letters {
+.letters {
   display: flex;
   flex-wrap: wrap;
   gap: 7px;
-  margin-bottom: 16px;
+  margin-bottom: 18px;
 }
 
-.letter {
-  padding: 9px 13px;
-  border: 1px solid #214a87;
-  border-radius: 7px;
+.letters button, .linkbutton {
+  border: 1px solid #193e70;
   background: white;
-  color: #173b70;
+  color: #193e70;
+  border-radius: 8px;
+  padding: 10px 14px;
   font-weight: bold;
-  font-size: 16px;
   cursor: pointer;
+  font-size: 15px;
 }
 
-.letter.actief {
-  background: #173b70;
+.letters button.active,
+.linkbutton {
+  background: #193e70;
   color: white;
 }
 
-#status {
+#count {
   margin: 12px 0;
   color: #555;
 }
 
-.dans {
+.dance {
   background: white;
+  border-left: 5px solid #c62828;
   border-radius: 12px;
-  padding: 18px;
+  padding: 17px;
   margin-bottom: 13px;
-  border-left: 5px solid #b22222;
-  box-shadow: 0 2px 7px rgba(0,0,0,.07);
+  box-shadow: 0 2px 7px #00000012;
 }
 
-.dans h2 {
+.dance h2 {
   margin: 0 0 10px;
-  font-size: 22px;
+  font-size: 21px;
 }
 
-.info {
+.details {
   color: #444;
-  line-height: 1.7;
-  margin-bottom: 13px;
+  line-height: 1.6;
+  margin-bottom: 12px;
 }
 
-.knoppen {
+.links {
   display: flex;
   flex-wrap: wrap;
-  gap: 10px;
+  gap: 9px;
 }
 
-.linkknop {
+.linkbutton {
   display: inline-block;
-  background: #173b70;
-  color: white;
   text-decoration: none;
-  padding: 12px 16px;
-  border-radius: 8px;
-  font-weight: bold;
+  padding: 11px 15px;
 }
 
-.linkknop:hover {
-  background: #b22222;
+.linkbutton:hover {
+  background: #c62828;
 }
 
-.geenlink {
-  color: #777;
-  font-size: 14px;
+.status {
+  text-align: center;
+  padding: 25px;
+  color: #555;
 }
 
 @media (max-width: 600px) {
-  body { padding: 9px; }
-  header h1 { font-size: 23px; }
-  .dans { padding: 14px; }
-  .dans h2 { font-size: 20px; }
-  .letter { padding: 9px 11px; }
-  .linkknop {
-    width: 100%;
-    text-align: center;
-  }
+  body { padding: 10px; }
+  header { padding: 20px 10px; }
+  header h1 { font-size: 25px; }
+  input { font-size: 17px; }
+  .letters { gap: 6px; }
+  .letters button { padding: 10px 12px; }
+  .dance { padding: 14px; }
+  .dance h2 { font-size: 20px; }
+  .linkbutton { width: 100%; text-align: center; }
 }
 </style>
 </head>
@@ -145,186 +137,198 @@ header p {
   <p>Ontdek onze linedances, muziek en dansvideo's</p>
 </header>
 
-<input id="zoek" type="search" placeholder="Zoek een dansnaam...">
+<input id="search" type="search" placeholder="Zoek een dansnaam...">
 
-<div id="letters"></div>
-<div id="status">Dansen worden geladen...</div>
-<div id="lijst"></div>
+<div class="letters" id="letters"></div>
+
+<div id="count">Dansen worden geladen...</div>
+<div id="list" class="status">Even geduld...</div>
 
 </div>
 
 <script>
-const CSV_URL =
-'https://docs.google.com/spreadsheets/d/e/2PACX-1vSYG4XzDwu4i0qIeLzldyCvl-G8e2Srmqp1olPswI699VROykExsAW83wO8E4qAJRCeYQMReAbTh06z/pub?gid=86558985&single=true&output=csv';
+const csvUrl =
+"https://docs.google.com/spreadsheets/d/e/2PACX-1vSYG4XzDwu4i0qIeLzldyCvl-G8e2Srmqp1olPswI699VROykExsAW83wO8E4qAJRCeYQMReAbTh06z/pub?gid=86558985&single=true&output=csv";
 
-let dansen = [];
-let gekozenLetter = '';
+let dances = [];
+let selectedLetter = "Alles";
 
-function csvRegels(tekst) {
-  const regels = [];
-  let regel = [];
-  let veld = '';
-  let aanhaling = false;
+function parseCSV(text) {
+  const rows = [];
+  let row = [], value = "", quoted = false;
 
-  for (let i = 0; i < tekst.length; i++) {
-    const c = tekst[i];
+  for (let i = 0; i < text.length; i++) {
+    const c = text[i];
 
-    if (c === '"' && aanhaling && tekst[i + 1] === '"') {
-      veld += '"';
+    if (c === '"' && quoted && text[i + 1] === '"') {
+      value += '"';
       i++;
     } else if (c === '"') {
-      aanhaling = !aanhaling;
-    } else if (c === ',' && !aanhaling) {
-      regel.push(veld);
-      veld = '';
-    } else if ((c === '\n' || c === '\r') && !aanhaling) {
-      if (c === '\r' && tekst[i + 1] === '\n') i++;
-      regel.push(veld);
-      if (regel.some(v => v.trim() !== '')) regels.push(regel);
-      regel = [];
-      veld = '';
+      quoted = !quoted;
+    } else if (c === "," && !quoted) {
+      row.push(value.trim());
+      value = "";
+    } else if ((c === "\n" || c === "\r") && !quoted) {
+      if (c === "\r" && text[i + 1] === "\n") i++;
+      row.push(value.trim());
+      if (row.some(v => v !== "")) rows.push(row);
+      row = [];
+      value = "";
     } else {
-      veld += c;
+      value += c;
     }
   }
 
-  regel.push(veld);
-  if (regel.some(v => v.trim() !== '')) regels.push(regel);
-
-  return regels;
+  row.push(value.trim());
+  if (row.some(v => v !== "")) rows.push(row);
+  return rows;
 }
 
-function waarde(d, naam) {
-  const sleutel = Object.keys(d).find(
-    k => k.trim().toUpperCase() === naam.toUpperCase()
-  );
-  return sleutel ? (d[sleutel] || '').trim() : '';
+function safeUrl(value) {
+  try {
+    const url = new URL(value);
+    return ["https:", "http:"].includes(url.protocol) ? url.href : "";
+  } catch {
+    return "";
+  }
 }
 
-function maakLetters() {
-  const letters = [...new Set(
-    dansen.map(d => waarde(d, 'DANSNAAM').charAt(0).toUpperCase())
-      .filter(Boolean)
-  )].sort();
+function makeLetters() {
+  const letters = ["Alles", ..."ABCDEFGHIJKLMNOPQRSTUVWXYZ"];
+  const area = document.getElementById("letters");
+  area.innerHTML = "";
 
-  const balk = document.getElementById('letters');
-  balk.innerHTML = '';
+  letters.forEach(letter => {
+    const button = document.createElement("button");
+    button.textContent = letter;
+    button.className = selectedLetter === letter ? "active" : "";
 
-  [['Alles', ''], ...letters.map(l => [l, l])].forEach(([tekst, letter]) => {
-    const knop = document.createElement('button');
-    knop.className = 'letter' +
-      (gekozenLetter === letter ? ' actief' : '');
-    knop.textContent = tekst;
-    knop.onclick = () => {
-      gekozenLetter = letter;
-      maakLetters();
-      toonLijst();
+    button.onclick = () => {
+      selectedLetter = letter;
+      makeLetters();
+      render();
     };
-    balk.appendChild(knop);
+
+    area.appendChild(button);
   });
 }
 
-function maakLink(kaart, url, tekst) {
-  if (!url || !/^https?:\/\//i.test(url)) return;
-
-  const knop = document.createElement('a');
-  knop.className = 'linkknop';
-  knop.href = url;
-  knop.target = '_blank';
-  knop.rel = 'noopener';
-  knop.textContent = tekst;
-  kaart.appendChild(knop);
-}
-
-function toonLijst() {
-  const zoekterm = document.getElementById('zoek').value
+function render() {
+  const search = document.getElementById("search").value
     .trim().toLowerCase();
 
-  const resultaten = dansen.filter(d => {
-    const naam = waarde(d, 'DANSNAAM').toLowerCase();
-    return naam.includes(zoekterm) &&
-      (!gekozenLetter ||
-       naam.toUpperCase().startsWith(gekozenLetter));
+  const filtered = dances.filter(d => {
+    const name = (d.name || "").toLowerCase();
+    const matchesSearch = name.includes(search);
+    const matchesLetter =
+      selectedLetter === "Alles" ||
+      name.toUpperCase().startsWith(selectedLetter);
+
+    return matchesSearch && matchesLetter;
   });
 
-  document.getElementById('status').textContent =
-    resultaten.length + ' dans(en) gevonden';
+  document.getElementById("count").textContent =
+    filtered.length + " dans(en) gevonden";
 
-  const lijst = document.getElementById('lijst');
-  lijst.innerHTML = '';
+  const list = document.getElementById("list");
+  list.className = "";
+  list.innerHTML = "";
 
-  resultaten.forEach(d => {
-    const kaart = document.createElement('div');
-    kaart.className = 'dans';
+  if (!filtered.length) {
+    list.textContent = "Geen dansen gevonden.";
+    return;
+  }
 
-    const naam = document.createElement('h2');
-    naam.textContent = waarde(d, 'DANSNAAM');
-    kaart.appendChild(naam);
+  filtered.forEach(d => {
+    const card = document.createElement("article");
+    card.className = "dance";
 
-    const info = document.createElement('div');
-    info.className = 'info';
+    const title = document.createElement("h2");
+    title.textContent = d.name;
+    card.appendChild(title);
 
-    const regels = [];
-    if (waarde(d, 'TITEL'))
-      regels.push('Muziek: ' + waarde(d, 'TITEL'));
-    if (waarde(d, 'ARTIEST'))
-      regels.push('Artiest: ' + waarde(d, 'ARTIEST'));
-    if (waarde(d, 'NIVEAU'))
-      regels.push('Niveau: ' + waarde(d, 'NIVEAU'));
-    if (waarde(d, 'AANTAL TELLEN'))
-      regels.push('Aantal tellen: ' + waarde(d, 'AANTAL TELLEN'));
+    const details = document.createElement("div");
+    details.className = "details";
 
-    info.textContent = regels.join(' | ');
-    kaart.appendChild(info);
+    const info = [];
+    if (d.title) info.push("Muziek: " + d.title);
+    if (d.artist) info.push("Artiest: " + d.artist);
+    if (d.level) info.push("Niveau: " + d.level);
+    if (d.count) info.push("Aantal tellen: " + d.count);
 
-    const knoppen = document.createElement('div');
-    knoppen.className = 'knoppen';
+    details.textContent = info.join(" | ");
+    card.appendChild(details);
 
-    const link1 = waarde(d, 'LINK');
-    const link2 = waarde(d, 'LINK 2');
+    const links = document.createElement("div");
+    links.className = "links";
 
-    if (link1) maakLink(knoppen, link1, 'BEKIJK STEPSHEET / DANS');
-    if (link2) maakLink(knoppen, link2, 'BEKIJK DANSVIDEO');
-
-    if (!link1 && !link2) {
-      const melding = document.createElement('span');
-      melding.className = 'geenlink';
-      melding.textContent = 'Nog geen link beschikbaar';
-      knoppen.appendChild(melding);
+    if (d.link) {
+      const a = document.createElement("a");
+      a.className = "linkbutton";
+      a.href = d.link;
+      a.target = "_blank";
+      a.rel = "noopener";
+      a.textContent = "BEKIJK STEPSHEET";
+      links.appendChild(a);
     }
 
-    kaart.appendChild(knoppen);
-    lijst.appendChild(kaart);
+    if (d.video) {
+      const a = document.createElement("a");
+      a.className = "linkbutton";
+      a.href = d.video;
+      a.target = "_blank";
+      a.rel = "noopener";
+      a.textContent = "BEKIJK DANSVIDEO";
+      links.appendChild(a);
+    }
+
+    if (links.children.length) {
+      card.appendChild(links);
+    } else {
+      details.textContent +=
+        (info.length ? " | " : "") + "Nog geen link beschikbaar";
+    }
+
+    list.appendChild(card);
   });
 }
 
-document.getElementById('zoek')
-  .addEventListener('input', toonLijst);
+async function loadDances() {
+  try {
+    const response = await fetch(csvUrl);
 
-fetch(CSV_URL)
-  .then(response => {
-    if (!response.ok) throw new Error('Spreadsheet niet bereikbaar');
-    return response.text();
-  })
-  .then(tekst => {
-    const regels = csvRegels(tekst);
-    const koppen = regels.shift();
+    if (!response.ok) throw new Error("Spreadsheet niet bereikbaar");
 
-    dansen = regels.map(regel => {
-      const d = {};
-      koppen.forEach((kop, i) => {
-        d[kop.trim()] = (regel[i] || '').trim();
-      });
-      return d;
-    }).filter(d => waarde(d, 'DANSNAAM'));
+    const text = await response.text();
+    const rows = parseCSV(text);
 
-    maakLetters();
-    toonLijst();
-  })
-  .catch(error => {
-    document.getElementById('status').textContent =
-      'De dansen konden niet geladen worden. Controleer de publicatie van het tabblad DANSEN.';
-  });
+    dances = rows.slice(1).map(row => ({
+      name: row[0] || "",
+      title: row[1] || "",
+      artist: row[2] || "",
+      level: row[3] || "",
+      count: row[4] || "",
+      link: safeUrl(row[5] || ""),
+      video: safeUrl(row[6] || "")
+    })).filter(d => d.name);
+
+    dances.sort((a, b) =>
+      a.name.localeCompare(b.name, "en")
+    );
+
+    makeLetters();
+    render();
+
+  } catch (error) {
+    document.getElementById("list").textContent =
+      "De dansenlijst kon niet worden geladen. Controleer de publicatie van het Google-spreadsheet.";
+    document.getElementById("count").textContent = "";
+  }
+}
+
+document.getElementById("search").addEventListener("input", render);
+
+loadDances();
 </script>
 </body>
 </html>
