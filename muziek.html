@@ -1,1 +1,351 @@
 
+<!DOCTYPE html>
+<html lang="nl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Onze muziek - The Footloose Star Dancers</title>
+<style>
+  * { box-sizing: border-box; }
+
+  body {
+    margin: 0;
+    padding: 20px;
+    font-family: Arial, sans-serif;
+    background: #f4f6f8;
+    color: #24313b;
+  }
+
+  .container {
+    max-width: 950px;
+    margin: 0 auto;
+  }
+
+  h1 {
+    text-align: center;
+    color: #173c59;
+    margin-bottom: 8px;
+  }
+
+  .intro {
+    text-align: center;
+    color: #596875;
+    margin-bottom: 24px;
+  }
+
+  #search {
+    width: 100%;
+    padding: 15px;
+    font-size: 17px;
+    border: 1px solid #b9c5ce;
+    border-radius: 9px;
+    margin-bottom: 15px;
+  }
+
+  .info {
+    display: flex;
+    justify-content: space-between;
+    gap: 10px;
+    flex-wrap: wrap;
+    margin-bottom: 14px;
+    color: #536575;
+    font-size: 14px;
+  }
+
+  .song {
+    background: white;
+    border-radius: 10px;
+    padding: 15px;
+    margin-bottom: 10px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 12px;
+    box-shadow: 0 1px 4px #00000012;
+  }
+
+  .song-info {
+    min-width: 0;
+  }
+
+  .song-title {
+    font-weight: bold;
+    font-size: 17px;
+    color: #173c59;
+    overflow-wrap: anywhere;
+  }
+
+  .artist {
+    margin-top: 5px;
+    color: #596875;
+    font-size: 14px;
+  }
+
+  .dance {
+    margin-top: 5px;
+    color: #26704a;
+    font-size: 14px;
+  }
+
+  .spotify {
+    flex-shrink: 0;
+    background: #168447;
+    color: white;
+    text-decoration: none;
+    padding: 11px 15px;
+    border-radius: 7px;
+    font-weight: bold;
+    font-size: 13px;
+  }
+
+  .spotify:hover {
+    background: #116536;
+  }
+
+  #status {
+    text-align: center;
+    padding: 25px;
+    color: #596875;
+  }
+
+  @media (max-width: 520px) {
+    body { padding: 12px; }
+    .song { padding: 12px; }
+    .song-title { font-size: 15px; }
+    .spotify { padding: 10px; font-size: 12px; }
+  }
+</style>
+</head>
+
+<body>
+<div class="container">
+
+  <h1>Onze muziek</h1>
+  <p class="intro">The Footloose Star Dancers</p>
+
+  <input
+    id="search"
+    type="search"
+    placeholder="Zoek op titel, artiest of dans..."
+    autocomplete="off"
+  >
+
+  <div class="info">
+    <span id="count">Muziek wordt geladen...</span>
+    <span>Alfabetisch op titel</span>
+  </div>
+
+  <div id="status">Even geduld, de muzieklijst wordt opgehaald...</div>
+  <div id="results"></div>
+
+</div>
+
+<script>
+const MUSIC_CSV =
+  "https://docs.google.com/spreadsheets/d/e/2PACX-1vTsZknivfJ160MeKmLOFCaOpqa0h5-9UjzWsswYPeqY6Mkpni8q4GJNyLdExjJZeTlfYMdskRpZsj8V/pub?output=csv";
+
+const DANCE_CSV =
+  "https://docs.google.com/spreadsheets/d/e/2PACX-1vSYG4XzDwu4i0qIeLzldyCvl-G8e2Srmqp1olPswI699VROykExsAW83wO8E4qAJRCeYQMReAbTh06z/pub?gid=0&single=true&output=csv";
+
+let songs = [];
+
+function parseCSV(text) {
+  const rows = [];
+  let row = [];
+  let value = "";
+  let quoted = false;
+
+  for (let i = 0; i < text.length; i++) {
+    const c = text[i];
+    const next = text[i + 1];
+
+    if (c === '"' && quoted && next === '"') {
+      value += '"';
+      i++;
+    } else if (c === '"') {
+      quoted = !quoted;
+    } else if (c === "," && !quoted) {
+      row.push(value);
+      value = "";
+    } else if ((c === "\n" || c === "\r") && !quoted) {
+      if (c === "\r" && next === "\n") i++;
+      row.push(value);
+      if (row.some(cell => cell.trim() !== "")) rows.push(row);
+      row = [];
+      value = "";
+    } else {
+      value += c;
+    }
+  }
+
+  row.push(value);
+  if (row.some(cell => cell.trim() !== "")) rows.push(row);
+
+  return rows;
+}
+
+function normalize(value) {
+  return String(value || "")
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[^a-z0-9]/g, "");
+}
+
+function spotifyUrl(link) {
+  const value = String(link || "").trim();
+
+  if (value.startsWith("spotify:track:")) {
+    return "https://open.spotify.com/track/" +
+      value.replace("spotify:track:", "");
+  }
+
+  if (value.includes("open.spotify.com/track/")) {
+    return value;
+  }
+
+  return "";
+}
+
+async function loadMusic() {
+  const response = await fetch(MUSIC_CSV);
+  if (!response.ok) throw new Error("Muzieklijst niet bereikbaar.");
+
+  const rows = parseCSV(await response.text());
+  const header = rows[0].map(x => x.trim().toUpperCase());
+
+  const linkCol = header.indexOf("LINK");
+  const titleCol = header.indexOf("TITEL");
+  const artistCol = header.indexOf("ARTIEST");
+  const danceCol = header.indexOf("DANS");
+
+  if (linkCol < 0 || titleCol < 0 || artistCol < 0 || danceCol < 0) {
+    throw new Error("De vier kolommen LINK, TITEL, ARTIEST en DANS zijn niet allemaal gevonden.");
+  }
+
+  songs = rows.slice(1).map(row => ({
+    link: row[linkCol] || "",
+    title: row[titleCol] || "",
+    artist: row[artistCol] || "",
+    dance: row[danceCol] || ""
+  })).filter(song => song.title.trim() !== "");
+
+  await matchDances();
+  songs.sort((a, b) => a.title.localeCompare(b.title, "nl"));
+  render();
+}
+
+async function matchDances() {
+  try {
+    const response = await fetch(DANCE_CSV);
+    if (!response.ok) return;
+
+    const rows = parseCSV(await response.text());
+    const header = rows[0].map(x => x.trim().toUpperCase());
+
+    const nameCol = header.indexOf("DANSNAAM");
+    const titleCol = header.indexOf("TITEL");
+    const artistCol = header.indexOf("ARTIEST");
+
+    if (nameCol < 0 || titleCol < 0) return;
+
+    const danceRows = rows.slice(1).map(row => ({
+      name: row[nameCol] || "",
+      title: row[titleCol] || "",
+      artist: artistCol >= 0 ? row[artistCol] || "" : ""
+    })).filter(d => d.name && d.title);
+
+    for (const song of songs) {
+      if (song.dance.trim()) continue;
+
+      const titleMatches = danceRows.filter(d =>
+        normalize(d.title) === normalize(song.title)
+      );
+
+      let match = null;
+
+      if (titleMatches.length === 1) {
+        match = titleMatches[0];
+      } else if (titleMatches.length > 1) {
+        match = titleMatches.find(d =>
+          normalize(d.artist) === normalize(song.artist)
+        );
+      }
+
+      if (match) song.dance = match.name;
+    }
+  } catch (error) {
+    console.log("Automatische danskoppeling niet beschikbaar:", error);
+  }
+}
+
+function render() {
+  const search = normalize(document.getElementById("search").value);
+  const results = document.getElementById("results");
+
+  results.innerHTML = "";
+
+  const filtered = songs.filter(song =>
+    normalize(song.title + song.artist + song.dance).includes(search)
+  );
+
+  document.getElementById("count").textContent =
+    filtered.length + " van " + songs.length + " nummers";
+
+  document.getElementById("status").textContent =
+    filtered.length ? "" : "Geen nummers gevonden.";
+
+  filtered.forEach(song => {
+    const url = spotifyUrl(song.link);
+
+    const item = document.createElement("div");
+    item.className = "song";
+
+    const info = document.createElement("div");
+    info.className = "song-info";
+
+    const title = document.createElement("div");
+    title.className = "song-title";
+    title.textContent = song.title;
+
+    const artist = document.createElement("div");
+    artist.className = "artist";
+    artist.textContent = song.artist;
+
+    info.appendChild(title);
+    info.appendChild(artist);
+
+    if (song.dance.trim()) {
+      const dance = document.createElement("div");
+      dance.className = "dance";
+      dance.textContent = "Dans: " + song.dance;
+      info.appendChild(dance);
+    }
+
+    item.appendChild(info);
+
+    if (url) {
+      const button = document.createElement("a");
+      button.className = "spotify";
+      button.href = url;
+      button.target = "_blank";
+      button.rel = "noopener";
+      button.textContent = "BELUISTER";
+      item.appendChild(button);
+    }
+
+    results.appendChild(item);
+  });
+}
+
+document.getElementById("search").addEventListener("input", render);
+
+loadMusic().catch(error => {
+  document.getElementById("status").textContent =
+    "De muzieklijst kon niet geladen worden. Controleer of de Google Sheet gepubliceerd is als CSV.";
+  console.error(error);
+});
+</script>
+</body>
+</html>
+
