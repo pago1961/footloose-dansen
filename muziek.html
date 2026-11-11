@@ -201,7 +201,7 @@ function youtubeUrl(link) {
   // Accept only direct YouTube URLs; reject arbitrary or unsafe destinations.
   try {
     const url = new URL(value);
-    const host = url.hostname.toLowerCase().replace(/^www\\./, "");
+    const host = url.hostname.toLowerCase().replace(/^www\./, "");
     const allowedHosts = ["youtube.com", "m.youtube.com", "youtu.be"];
     if (url.protocol !== "https:" && url.protocol !== "http:") return "";
     if (!allowedHosts.includes(host)) return "";
