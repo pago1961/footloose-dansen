@@ -88,19 +88,20 @@
     font-weight: bold;
   }
 
-  .spotify {
+  .youtube {
     flex-shrink: 0;
-    background: #168447;
+    background: #d93025;
     color: white;
     text-decoration: none;
     padding: 11px 15px;
     border-radius: 7px;
     font-weight: bold;
     font-size: 13px;
+    text-align: center;
   }
 
-  .spotify:hover {
-    background: #116536;
+  .youtube:hover {
+    background: #b3261e;
   }
 
   #status {
@@ -113,7 +114,7 @@
     body { padding: 12px; }
     .song { padding: 12px; }
     .song-title { font-size: 15px; }
-    .spotify { padding: 10px; font-size: 12px; }
+    .youtube { padding: 10px; font-size: 12px; }
   }
 </style>
 </head>
@@ -193,19 +194,21 @@ function normalize(value) {
     .replace(/[^a-z0-9]/g, "");
 }
 
-function spotifyUrl(link) {
+function youtubeUrl(link) {
   const value = String(link || "").trim();
+  if (!value) return "";
 
-  if (value.startsWith("spotify:track:")) {
-    return "https://open.spotify.com/track/" +
-      value.replace("spotify:track:", "");
+  // Accept only direct YouTube URLs; reject arbitrary or unsafe destinations.
+  try {
+    const url = new URL(value);
+    const host = url.hostname.toLowerCase().replace(/^www\\./, "");
+    const allowedHosts = ["youtube.com", "m.youtube.com", "youtu.be"];
+    if (url.protocol !== "https:" && url.protocol !== "http:") return "";
+    if (!allowedHosts.includes(host)) return "";
+    return url.href;
+  } catch (error) {
+    return "";
   }
-
-  if (value.includes("open.spotify.com/track/")) {
-    return value;
-  }
-
-  return "";
 }
 
 async function loadMusic() {
@@ -213,15 +216,21 @@ async function loadMusic() {
   if (!response.ok) throw new Error("Muzieklijst niet bereikbaar.");
 
   const rows = parseCSV(await response.text());
+  if (!rows.length) throw new Error("De muzieklijst is leeg.");
+
   const header = rows[0].map(x => x.trim().toUpperCase());
 
-  const linkCol = header.indexOf("LINK");
+  // Nieuwe indeling: A=YOUTUBE-LINK, B=TITEL, C=ARTIEST, D=DANS, E=SPOTIFY-LINK.
+  // De oude kolomnaam LINK blijft ondersteund voor compatibiliteit.
+  const linkCol = header.indexOf("YOUTUBE-LINK") >= 0
+    ? header.indexOf("YOUTUBE-LINK")
+    : header.indexOf("LINK");
   const titleCol = header.indexOf("TITEL");
   const artistCol = header.indexOf("ARTIEST");
   const danceCol = header.indexOf("DANS");
 
   if (linkCol < 0 || titleCol < 0 || artistCol < 0 || danceCol < 0) {
-    throw new Error("De vier kolommen LINK, TITEL, ARTIEST en DANS zijn niet allemaal gevonden.");
+    throw new Error("De kolommen YOUTUBE-LINK (of LINK), TITEL, ARTIEST en DANS zijn niet allemaal gevonden.");
   }
 
   songs = rows.slice(1).map(row => ({
@@ -297,7 +306,7 @@ function render() {
     filtered.length ? "" : "Geen nummers gevonden.";
 
   filtered.forEach(song => {
-    const url = spotifyUrl(song.link);
+    const url = youtubeUrl(song.link);
 
     const item = document.createElement("div");
     item.className = "song";
@@ -327,11 +336,11 @@ function render() {
 
     if (url) {
       const button = document.createElement("a");
-      button.className = "spotify";
+      button.className = "youtube";
       button.href = url;
       button.target = "_blank";
-      button.rel = "noopener";
-      button.textContent = "BELUISTER";
+      button.rel = "noopener noreferrer";
+      button.textContent = "BELUISTER OP YOUTUBE";
       item.appendChild(button);
     }
 
